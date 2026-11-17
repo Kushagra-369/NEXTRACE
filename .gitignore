@@ -233,4 +233,4 @@ __pycache__/
 
 # Generated scan history
 /history/*
-!/history/.gitkeep
+!/history/.gitkeep.venv/
