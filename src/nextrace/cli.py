@@ -15,6 +15,7 @@ from nextrace.scanner import (
 )
 from nextrace.exporter import export_json, export_csv
 from nextrace.reporter import generate_report
+from nextrace.findings import generate_findings
 
 
 def create_parser():
@@ -89,11 +90,13 @@ def main():
             xml_output = run_scan(target, args.ports)
             results = parse_scan_results(xml_output)
             host_metadata = parse_host_info(xml_output)
+            findings = generate_findings(results)
 
             json_file = export_json(
                 results,
                 f"{slug}_{timestamp}.json",
-                host_metadata
+                host_metadata,
+                findings
             )
             csv_file = export_csv(
                 results, f"{slug}_{timestamp}.csv"
@@ -102,10 +105,19 @@ def main():
                 target,
                 results,
                 f"{slug}_{timestamp}.md",
-                host_metadata
+                host_metadata,
+                findings
             )
 
             print(f"[+] Port records: {len(results)}")
+            print(f"[+] Security findings: {len(findings)}")
+
+            for finding in findings:
+                print(
+                    f"    [{finding['severity'].upper()}] "
+                    f"{finding['title']} "
+                    f"(port {finding['port']})"
+                )
             print(f"[+] JSON: {json_file}")
             print(f"[+] CSV: {csv_file}")
             print(f"[+] Report: {report_file}")

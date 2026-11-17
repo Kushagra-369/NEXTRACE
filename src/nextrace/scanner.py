@@ -3,7 +3,6 @@ import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
-
 def check_nmap():
     path = shutil.which("nmap")
     if not path:

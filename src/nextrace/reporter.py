@@ -5,7 +5,8 @@ from pathlib import Path
 REPORT_DIR = Path("reports")
 
 
-def generate_report(target, results, filename, host_info=None):
+
+def generate_report(target, results, filename, host_info=None, findings=None):
     REPORT_DIR.mkdir(exist_ok=True)
     filepath = REPORT_DIR / filename
 
@@ -13,9 +14,12 @@ def generate_report(target, results, filename, host_info=None):
         "%Y-%m-%d %H:%M:%S UTC"
     )
 
+    findings = findings or []
     open_ports = [
-        item for item in results if item["state"] == "open"
+        item for item in results if item.get("state") == "open"
     ]
+
+    severity_order = ["high", "medium", "low", "informational"]
 
     lines = [
         "# NEXTRACE Reconnaissance Report",
@@ -54,7 +58,40 @@ def generate_report(target, results, filename, host_info=None):
         "## Enumeration Summary",
         f"- Total port records: {len(results)}",
         f"- Open ports: {len(open_ports)}",
-        f"- Closed or filtered records: {len(results) - len(open_ports)}",
+        f"- Total findings: {len(findings)}",
+        "",
+        "## Risk Summary",
+    ])
+
+    for severity in severity_order:
+        count = sum(
+            1 for finding in findings
+            if finding["severity"] == severity
+        )
+        lines.append(f"- {severity.title()}: {count}")
+
+    lines.extend([
+        "",
+        "## Security Findings",
+    ])
+
+    if not findings:
+        lines.append("No findings generated.")
+    else:
+        for index, finding in enumerate(findings, start=1):
+            lines.extend([
+                f"### {index}. {finding['title']}",
+                f"- Severity: {finding['severity'].upper()}",
+                f"- Finding ID: `{finding['id']}`",
+                f"- Host: {finding['host']}",
+                f"- Port: {finding['port']}",
+                f"- Service: {finding['service']}",
+                f"- Evidence: {finding['description']}",
+                f"- Recommendation: {finding['recommendation']}",
+                "",
+            ])
+
+    lines.extend([
         "",
         "## Scan Results",
         "| Host | Port | Protocol | State | Service | Product | Version |",
@@ -73,10 +110,11 @@ def generate_report(target, results, filename, host_info=None):
         "",
         "## Limitations",
         "- Results represent observations at scan time.",
+        "- Findings are rule-based observations, not confirmed vulnerabilities.",
+        "- Service identification may be incomplete.",
         "- OS guesses may be unavailable or inaccurate.",
-        "- Unknown versions do not prove outdated software.",
         "- Open ports do not automatically indicate vulnerabilities.",
-        "- This report does not establish exploitability.",
+        "- Manual validation is required before remediation decisions.",
         "",
     ])
 
