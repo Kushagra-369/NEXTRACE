@@ -3,16 +3,27 @@ import csv
 import json
 from pathlib import Path
 
-
 OUTPUT_DIR = Path("output")
 
+FIELDS = [
+    "host", "hostname", "mac_address", "os_guess",
+    "host_status", "protocol", "port", "state",
+    "service", "product", "version", "extra_info",
+    "tunnel", "service_method", "service_confidence", "cpe"
+]
 
-def export_json(results, filename):
+
+def export_json(results, filename, host_info=None):
     OUTPUT_DIR.mkdir(exist_ok=True)
     filepath = OUTPUT_DIR / filename
 
+    data = {
+        "hosts": host_info or [],
+        "ports": results,
+    }
+
     with filepath.open("w", encoding="utf-8") as file:
-        json.dump(results, file, indent=4)
+        json.dump(data, file, indent=4)
 
     return filepath
 
@@ -21,14 +32,16 @@ def export_csv(results, filename):
     OUTPUT_DIR.mkdir(exist_ok=True)
     filepath = OUTPUT_DIR / filename
 
-    fields = [
-        "host", "host_status", "protocol", "port",
-        "state", "service", "product", "version"
-    ]
-
     with filepath.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(
+            file, fieldnames=FIELDS, extrasaction="ignore"
+        )
         writer.writeheader()
-        writer.writerows(results)
+
+        for item in results:
+            row = item.copy()
+            if isinstance(row.get("cpe"), list):
+                row["cpe"] = "; ".join(row["cpe"])
+            writer.writerow(row)
 
     return filepath

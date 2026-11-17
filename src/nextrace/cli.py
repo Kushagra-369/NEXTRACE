@@ -10,6 +10,7 @@ from nextrace.scanner import (
     run_scan,
     discover_host,
     parse_scan_results,
+    parse_host_info,
     validate_ports,
 )
 from nextrace.exporter import export_json, export_csv
@@ -87,15 +88,21 @@ def main():
 
             xml_output = run_scan(target, args.ports)
             results = parse_scan_results(xml_output)
+            host_metadata = parse_host_info(xml_output)
 
             json_file = export_json(
-                results, f"{slug}_{timestamp}.json"
+                results,
+                f"{slug}_{timestamp}.json",
+                host_metadata
             )
             csv_file = export_csv(
                 results, f"{slug}_{timestamp}.csv"
             )
             report_file = generate_report(
-                target, results, f"{slug}_{timestamp}.md"
+                target,
+                results,
+                f"{slug}_{timestamp}.md",
+                host_metadata
             )
 
             print(f"[+] Port records: {len(results)}")
