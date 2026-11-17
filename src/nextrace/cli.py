@@ -16,7 +16,12 @@ from nextrace.scanner import (
 from nextrace.exporter import export_json, export_csv
 from nextrace.reporter import generate_report
 from nextrace.findings import generate_findings
-
+from nextrace.history import (
+    save_snapshot,
+    load_previous_snapshot,
+    compare_scans,
+)
+from nextrace.reporter import generate_change_report
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -92,6 +97,27 @@ def main():
             host_metadata = parse_host_info(xml_output)
             findings = generate_findings(results)
 
+            current_data = {
+                "hosts": host_metadata,
+                "ports": results,
+                "findings": findings,
+            }
+
+            previous = load_previous_snapshot(target, slug)
+
+            if previous:
+                changes = compare_scans(previous, current_data)
+                print("[+] Previous scan found. Comparing results...")
+            else:
+                changes = None
+                print("[+] No previous scan found. Creating baseline.")
+
+            history_file = save_snapshot(
+                target,
+                current_data,
+                f"{slug}_{timestamp}.json"
+            )
+
             json_file = export_json(
                 results,
                 f"{slug}_{timestamp}.json",
@@ -108,6 +134,25 @@ def main():
                 host_metadata,
                 findings
             )
+
+            if changes is not None:
+                change_file = generate_change_report(
+                    target,
+                    changes,
+                    f"{slug}_{timestamp}_changes.md"
+                )
+
+                print(
+                    "[+] Changes: "
+                    f"Opened={len(changes['newly_opened'])}, "
+                    f"Closed={len(changes['closed'])}, "
+                    f"Service changes={len(changes['service_changed'])}, "
+                    f"No longer observed={len(changes['no_longer_observed'])}"
+                )
+
+                print(f"[+] Comparison report: {change_file}")
+
+            print(f"[+] History snapshot: {history_file}")
 
             print(f"[+] Port records: {len(results)}")
             print(f"[+] Security findings: {len(findings)}")

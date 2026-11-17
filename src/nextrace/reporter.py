@@ -120,3 +120,68 @@ def generate_report(target, results, filename, host_info=None, findings=None):
 
     filepath.write_text("\n".join(lines), encoding="utf-8")
     return filepath
+
+
+def generate_change_report(target, changes, filename):
+    REPORT_DIR.mkdir(exist_ok=True)
+    filepath = REPORT_DIR / filename
+
+    sections = [
+        ("Newly Opened Ports", "newly_opened"),
+        ("Closed Ports", "closed"),
+        ("Service Changes", "service_changed"),
+        ("No Longer Observed", "no_longer_observed"),
+    ]
+
+    lines = [
+        "# NEXTRACE Scan Comparison",
+        "",
+        f"- Target: `{target}`",
+        "",
+        "## Change Summary",
+    ]
+
+    for title, key in sections:
+        lines.append(f"- {title}: {len(changes.get(key, []))}")
+
+    for title, key in sections:
+        lines.extend(["", f"## {title}"])
+
+        items = changes.get(key, [])
+
+        if not items:
+            lines.append("No changes detected.")
+            continue
+
+        for item in items:
+            if key == "service_changed":
+                old = item["previous"]
+                new = item["current"]
+                lines.append(
+                    f"- `{new['host']}:{new['port']}` "
+                    f"{old.get('service')} / {old.get('product')} / "
+                    f"{old.get('version')} → "
+                    f"{new.get('service')} / {new.get('product')} / "
+                    f"{new.get('version')}"
+                )
+            else:
+                lines.append(
+                    f"- `{item['host']}:{item['port']}` "
+                    f"({item.get('protocol', 'unknown')}) — "
+                    f"{item.get('service', 'unknown')}"
+                )
+
+    lines.extend([
+        "",
+        "## Interpretation",
+        "- Newly opened means a port is open now but was not previously observed as open.",
+        "- Closed means the current scan explicitly reported the previous open port as closed.",
+        "- No longer observed does not prove that a port is closed.",
+        "- Service changes are based on differences in detected service, product or version.",
+        "- Comparison results depend on using equivalent scan scope and settings.",
+        "",
+    ])
+
+    filepath.write_text("\n".join(lines), encoding="utf-8")
+    return filepath
+

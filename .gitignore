@@ -230,3 +230,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+
+# Generated scan history
+/history/*
+!/history/.gitkeep
