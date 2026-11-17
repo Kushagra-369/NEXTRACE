@@ -45,23 +45,34 @@ def validate_ports(ports):
         return False
 
 
+
+from nextrace.discovery import validate_target
+
 def run_scan(target, ports="1-1000"):
+    if not validate_target(target):
+        raise ValueError("Invalid target.")
+
     if not validate_ports(ports):
         raise ValueError("Invalid port specification.")
 
     result = subprocess.run(
         [
-            check_nmap(), "-sT", "-sV",
-            "-p", ports, "-oX", "-", target
+            check_nmap(),
+            "-sT",
+            "-sV",
+            "-p",
+            ports,
+            "-oX",
+            "-",
+            target,
         ],
         capture_output=True,
         text=True,
         timeout=180,
-        check=True
+        check=True,
     )
 
     return result.stdout
-
 
 def discover_host(target):
     result = subprocess.run(
