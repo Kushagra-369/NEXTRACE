@@ -1,31 +1,29 @@
 
 import argparse
+import re
+from datetime import datetime, timezone
+
 from nextrace.discovery import validate_target
+from nextrace.scanner import (
+    run_scan, parse_scan_results, validate_ports
+)
+from nextrace.exporter import export_json, export_csv
+from nextrace.reporter import generate_report
 
 
 def create_parser():
     parser = argparse.ArgumentParser(
         prog="nextrace",
-        description="NEXTRACE - Automated Network Reconnaissance Tool"
+        description="Automated Network Reconnaissance Tool"
     )
 
+    parser.add_argument("--version", action="version", version="NEXTRACE 1.0.0")
     parser.add_argument(
-        "--version",
-        action="version",
-        version="NEXTRACE 1.0.0"
+        "--target", nargs="+", required=True,
+        help="One or more authorized IP addresses or hostnames"
     )
-
-    parser.add_argument(
-        "--target",
-        type=str,
-        help="IP address or hostname of an authorized target"
-    )
-
-    parser.add_argument(
-        "--authorized",
-        action="store_true",
-        help="Confirm permission to assess this target"
-    )
+    parser.add_argument("--ports", default="1-1000")
+    parser.add_argument("--authorized", action="store_true")
 
     return parser
 
@@ -34,16 +32,44 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
 
-    if args.target:
-        if not args.authorized:
-            parser.error("Authorization confirmation is required.")
+    if not args.authorized:
+        parser.error("Authorization confirmation required.")
 
-        if not validate_target(args.target):
-            parser.error("Invalid IP address or hostname.")
+    for target in args.target:
+        if not validate_target(target):
+            parser.error(f"Invalid target: {target}")
 
-        print(f"[+] Valid target: {args.target}")
-        print("[+] Authorization confirmed.")
-        print("[*] Scanning functionality will be added next.")
+    if not validate_ports(args.ports):
+        parser.error("Invalid port range. Example: 22,80,443,8000-8100")
 
-    else:
-        parser.print_help()
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+    for target in args.target:
+        slug = re.sub(r"[^a-zA-Z0-9_-]", "_", target)
+
+        print(f"\n[+] Target: {target}")
+        print("[+] Starting Nmap scan...")
+
+        try:
+            xml_output = run_scan(target, args.ports)
+            results = parse_scan_results(xml_output)
+
+            json_file = export_json(results, f"{slug}_{timestamp}.json")
+            csv_file = export_csv(results, f"{slug}_{timestamp}.csv")
+            report_file = generate_report(
+                target, results, f"{slug}_{timestamp}.md"
+            )
+
+            print(f"[+] Port records: {len(results)}")
+            print(f"[+] JSON: {json_file}")
+            print(f"[+] CSV: {csv_file}")
+            print(f"[+] Report: {report_file}")
+
+        except (RuntimeError, OSError, ValueError,
+                TimeoutError, Exception) as error:
+            print(f"[-] Scan failed for {target}: {error}")
+            continue
+
+
+if __name__ == "__main__":
+    main()

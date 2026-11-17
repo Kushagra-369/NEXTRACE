@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# NEXTRACE generated data
+/output/*
+!/output/.gitkeep
+
+/reports/*
+!/reports/.gitkeep
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
